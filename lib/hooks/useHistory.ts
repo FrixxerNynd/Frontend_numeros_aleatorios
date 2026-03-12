@@ -25,30 +25,56 @@ export function useHistory() {
   const fetchHistory = useCallback(async (filters?: HistoryFilters) => {
     setIsLoading(true);
     setError(null);
-    try {
-      const queryParams = new URLSearchParams();
-      
-      if (filters?.Categoria) queryParams.append('Categoria', filters.Categoria);
-      if (filters?.Fecha_inicial) queryParams.append('Fecha_inicial', filters.Fecha_inicial);
-      if (filters?.Fecha_final) queryParams.append('Fecha_final', filters.Fecha_final);
-      if (filters?.Usuario) queryParams.append('Usuario', filters.Usuario);
+    
+    // Simulating API delay
+    await new Promise(resolve => setTimeout(resolve, 500));
 
-      // Si el backend sigue corriendo en el puerto 3000
-      const url = `http://localhost:3000/history${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
-      
-      const response = await fetch(url);
-      
-      if (!response.ok) {
-        throw new Error('Error al obtener el historial');
+    const mockData: HistorialRecord[] = [
+      {
+        id: '1',
+        idUsuario: 'user123',
+        categoria: 'Juego',
+        descripcion: 'Mega Gold Slots',
+        dinero: 450.00,
+        fecha: new Date(Date.now() - 1000 * 60 * 15).toISOString(), // 15 mins ago
+      },
+      {
+        id: '2',
+        idUsuario: 'user123',
+        categoria: 'Juego',
+        descripcion: 'Blackjack VIP',
+        dinero: -200.00,
+        fecha: new Date(Date.now() - 1000 * 60 * 45).toISOString(), // 45 mins ago
+      },
+      {
+        id: '3',
+        idUsuario: 'user123',
+        categoria: 'Juego',
+        descripcion: 'Roulette Royale',
+        dinero: 3600.00,
+        fecha: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), // 2 hours ago
+      },
+      {
+        id: '4',
+        idUsuario: 'user123',
+        categoria: 'Convercion',
+        descripcion: 'Moneda a Fichas',
+        dinero: -100.00,
+        fichas: 1000,
+        fecha: new Date(Date.now() - 1000 * 60 * 60 * 5).toISOString(), // 5 hours ago
+      },
+      {
+        id: '5',
+        idUsuario: 'user123',
+        categoria: 'Deposito',
+        descripcion: 'Depósito Tarjeta',
+        dinero: 500.00,
+        fecha: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // 1 day ago
       }
+    ];
 
-      const data: HistorialRecord[] = await response.json();
-      setHistory(data);
-    } catch (err: any) {
-      setError(err.message || 'Ocurrió un error inesperado');
-    } finally {
-      setIsLoading(false);
-    }
+    setHistory(mockData);
+    setIsLoading(false);
   }, []);
 
   return { history, isLoading, error, fetchHistory };

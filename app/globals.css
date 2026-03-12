@@ -45,6 +45,16 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+  --color-primary-emerald: #00FF88;
+  --color-emerald-dark: #0A2A1F;
+  --color-emerald-card: #0F3D2E;
+  --color-emerald-accent: #1E6F4F;
+  --color-gold: #edb91d;
+  --color-win-green: #00FF88;
+  --color-gold-accent: #D4AF37;
+  --color-gold-muted: #AA8E39;
+  --color-emerald-deep: #04140F;
+  --color-emerald-vibrant: #00FF88;
 }
 
 :root {
