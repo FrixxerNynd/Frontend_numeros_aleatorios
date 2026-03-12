@@ -7,9 +7,8 @@ interface AdminSidebarProps {
 export function AdminSidebar({ activePath }: AdminSidebarProps) {
   const menuItems = [
     { label: 'Operations Hub', icon: 'dashboard', href: '/admin' },
-    { label: 'Analytics', icon: 'monitoring', href: '#' },
-    { label: 'User Registry', icon: 'group', href: '#' },
-    { label: 'Financials', icon: 'account_balance', href: '#' },
+    { label: 'Analytics', icon: 'monitoring', href: '/admin/analytics' },
+    { label: 'Financials', icon: 'account_balance', href: '/admin/financials' },
     { label: 'Security Audit', icon: 'security', href: '#' },
   ];
 
