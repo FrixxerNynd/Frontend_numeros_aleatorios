@@ -40,13 +40,14 @@ export default function AdminAnalyticsPage() {
                   placeholder="Filter logs..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="bg-[#04140F]/60 border border-[#D4AF37]/20 rounded-xl py-2 px-10 text-sm text-white placeholder-[#10B981]/30 focus:ring-1 focus:ring-[#D4AF37]/50 outline-none w-64"
+                  className="bg-[#04140F]/60 border border-[#D4AF37]/40 rounded-xl py-2 px-10 text-sm text-white placeholder-[#10B981]/30 focus:ring-1 focus:ring-[#D4AF37] outline-none w-64 transition-all"
                 />
-                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#D4AF37]/40 text-sm">search</span>
+                <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[#D4AF37] text-sm">search</span>
               </div>
               <button
                 onClick={downloadCsv}
-                className="gold-button text-[#04140F] font-bold text-xs px-6 py-2 rounded-xl active:scale-95 transition-transform flex items-center gap-2">
+                className="bg-gradient-to-r from-[#D4AF37] via-[#F3D784] to-[#AA8E39] text-[#04140F] font-bold text-xs px-6 py-2 rounded-xl active:scale-95 transition-all flex items-center gap-2 hover:shadow-[0_0_20px_rgba(212,175,55,0.3)] shadow-lg shadow-[#D4AF37]/10"
+              >
                 <span className="material-symbols-outlined text-sm">download</span>
                 EXPORT CSV
               </button>
