@@ -1,69 +1,67 @@
+'use client';
 import React, { useState } from 'react';
 
-export default function ChipExchange({ rate, onDeposit, depositLoading, depositError, onWithdraw, withdrawLoading, withdrawError }: {
+export default function ChipExchange({ rate, onWithdraw, withdrawLoading, withdrawError }: {
   rate: number;
-  onDeposit: (payload: { chips: number }) => void;
-  depositLoading: boolean;
-  depositError: any;
   onWithdraw: (payload: { chips: number }) => void;
   withdrawLoading: boolean;
-  withdrawError: any;
+  withdrawError: { message: string } | null;
 }) {
-  const [chips, setChips] = useState(0);
-  const [action, setAction] = useState<'deposit' | 'withdraw'>('deposit');
-  const cashValue = chips * rate;
+  const [amount, setAmount] = useState(0);
+  const equivalent = `$${(amount * rate).toFixed(2)} MXN`;
 
   const handleSubmit = () => {
-    if (action === 'deposit') {
-      onDeposit({ chips });
-    } else {
-      onWithdraw({ chips });
-    }
+    onWithdraw({ chips: amount });
   };
 
   return (
     <section className="bg-green-800 rounded-lg p-6 mb-4">
-      <div className="text-green-300 text-lg font-semibold mb-2">Instant Chip Exchange</div>
-      <div className="flex gap-4 mb-4">
-        <div className="flex-1">
-          <label className="block text-green-200 text-xs mb-1">CHIPS</label>
-          <input
-            type="number"
-            value={chips}
-            onChange={e => setChips(Number(e.target.value))}
-            className="w-full bg-green-900 text-green-300 px-4 py-2 rounded text-lg border-none focus:outline-none"
-            min={0}
-          />
-        </div>
-        <div className="flex-1">
-          <label className="block text-green-200 text-xs mb-1">EQUIVALENT CASH VALUE</label>
-          <input
-            type="text"
-            value={`$${cashValue.toFixed(2)}`}
-            readOnly
-            className="w-full bg-green-900 text-green-300 px-4 py-2 rounded text-lg border-none focus:outline-none"
-          />
-        </div>
-      </div>
+      <div className="text-green-300 text-lg font-semibold mb-4"> Retiro de Fichas</div>
+
+      {/* Retiro
       <div className="flex gap-2 mb-4">
         <button
-          className={`casino-btn green ${action === 'deposit' ? 'opacity-100' : 'opacity-70'}`}
-          onClick={() => setAction('deposit')}
-        >Depositar</button>
-        <button
-          className={`casino-btn yellow ${action === 'withdraw' ? 'opacity-100' : 'opacity-70'}`}
-          onClick={() => setAction('withdraw')}
-        >Retirar</button>
+          className="casino-btn yellow flex-1"
+          onClick={() => setAmount(0)}
+        >🏧 Retirar</button>
+      </div> */}
+
+      <div className="flex gap-4 mb-4">
+        <div className="flex-1">
+          <label className="block text-green-200 text-xs mb-1">
+            FICHAS A RETIRAR
+          </label>
+          <input
+            type="number"
+            value={amount || ''}
+            onChange={e => setAmount(Number(e.target.value))}
+            className="w-full bg-green-950 text-white px-4 py-2 rounded text-lg border border-green-700 focus:outline-none focus:border-yellow-400"
+            min={1}
+            placeholder="Ej: 500"
+          />
+        </div>
+        <div className="flex-1">
+          <label className="block text-green-200 text-xs mb-1">RECIBIRÁS</label>
+          <div className="w-full bg-green-950 text-yellow-400 px-4 py-2 rounded text-lg border border-green-700 font-bold">
+            {amount > 0 ? equivalent : '—'}
+          </div>
+        </div>
       </div>
+
       <button
-        className="bg-green-400 text-green-900 px-6 py-2 rounded font-bold w-full"
+        className="bg-green-400 text-green-900 px-6 py-2 rounded font-bold w-full text-lg"
         onClick={handleSubmit}
-        disabled={depositLoading || withdrawLoading || chips <= 0}
+        disabled={withdrawLoading || amount <= 0}
       >
-        {action === 'deposit' ? (depositLoading ? 'Depositando...' : 'Confirmar Depósito') : (withdrawLoading ? 'Retirando...' : 'Confirmar Retiro')}
+        {withdrawLoading
+          ? 'Procesando...'
+          : `Retirar ${amount} fichas → $${(amount * rate).toFixed(2)} MXN`}
       </button>
-      {(depositError || withdrawError) && (
-        <div className="text-red-400 mt-2 text-sm">{depositError?.message || withdrawError?.message}</div>
+
+      {withdrawError && (
+        <div className="text-red-400 mt-3 text-sm bg-red-950 p-2 rounded">
+          ⚠️ {withdrawError.message}
+        </div>
       )}
     </section>
   );

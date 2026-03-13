@@ -1,34 +1,44 @@
 import React from 'react';
 
-export default function BalanceCard({ balance, vip, onCashOut, onBuyChips, cashOutLoading, buyChipsLoading }: {
+const chipColorMap: Record<string, string> = {
+  Blanca:  'bg-white text-gray-900',
+  Azul:    'bg-blue-400 text-white',
+  Roja:    'bg-red-500 text-white',
+  Verde:   'bg-green-500 text-white',
+  Negra:   'bg-gray-900 text-white border border-gray-600',
+  Morada:  'bg-purple-600 text-white',
+  Dorada:  'bg-yellow-400 text-gray-900',
+};
+
+export default function BalanceCard({ balance, chipColor = 'Blanca', vip, onCashOut, onBuyChips }: {
   balance: number;
+  chipColor?: string;
   vip: boolean;
   onCashOut?: () => void;
   onBuyChips?: () => void;
-  cashOutLoading?: boolean;
-  buyChipsLoading?: boolean;
 }) {
+  const colorClass = chipColorMap[chipColor] ?? chipColorMap.Blanca;
+
   return (
-    <section className="bg-green-800 rounded-lg p-6 mb-4 flex flex-col items-start">
-      <div className="flex items-center gap-4">
+    <section className="bg-green-800 rounded-lg p-6 mb-4">
+      <div className="flex items-center justify-between">
         <div>
-          <div className="text-yellow-400 text-lg font-semibold">TOTAL CHIP BALANCE</div>
-          <div className="text-4xl font-bold text-white mt-2">{balance.toLocaleString()}</div>
-          <div className="text-green-300 text-xs mt-1">Premium last night's session</div>
+          <div className="text-yellow-400 text-lg font-semibold">SALDO DE FICHAS</div>
+          <div className="text-5xl font-bold text-white mt-2">{balance.toLocaleString()}</div>
+          {/* <div className="text-green-300 text-sm mt-1">
+            Equivale a ${(balance / 10).toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+          </div> */}
         </div>
-        {vip && <button className="bg-yellow-400 text-green-900 px-4 py-2 rounded font-bold ml-4">$ VIP Gold</button>}
-      </div>
-      <div className="flex gap-2 mt-4">
-        <button
-          className="bg-yellow-400 text-green-900 px-6 py-2 rounded font-bold"
-          onClick={onCashOut}
-          disabled={cashOutLoading}
-        >{cashOutLoading ? 'Retirando...' : '$ Cash Out'}</button>
-        <button
-          className="bg-green-400 text-green-900 px-6 py-2 rounded font-bold"
-          onClick={onBuyChips}
-          disabled={buyChipsLoading}
-        >{buyChipsLoading ? 'Comprando...' : 'Buy Chips'}</button>
+        <div className="flex flex-col items-center gap-2">
+          {/* Ficha visual con el color actual */}
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center font-bold text-lg shadow-lg border-4 border-opacity-30 ${colorClass}`}>
+            {balance > 0 ? chipColor[0] : '—'}
+          </div>
+          <span className="text-xs text-green-300">Ficha {chipColor}</span>
+          {vip && (
+            <span className="bg-yellow-400 text-green-900 px-3 py-1 rounded font-bold text-xs">⭐ VIP</span>
+          )}
+        </div>
       </div>
     </section>
   );
