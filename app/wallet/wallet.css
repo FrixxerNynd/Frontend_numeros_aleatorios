@@ -1,0 +1,69 @@
+/* Estilos base para el wallet de casino */
+.wallet-main {
+  min-height: 100vh;
+  background: #000;
+  color: #fff;
+  padding: 2rem;
+}
+
+.wallet-main {
+  font-family: 'Geist', 'Segoe UI', Arial, sans-serif;
+}
+
+.card {
+  background: #174d3a;
+  border-radius: 18px;
+  box-shadow: 0 4px 24px 0 rgba(0,0,0,0.18);
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+
+.casino-btn {
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  font-size: 1.1rem;
+  padding: 0.8rem 2rem;
+  transition: background 0.2s;
+}
+.casino-btn.yellow {
+  background: #ffe066;
+  color: #174d3a;
+}
+.casino-btn.green {
+  background: #2ecc40;
+  color: #174d3a;
+}
+.casino-btn:hover {
+  filter: brightness(0.95);
+}
+
+.casino-navbar {
+  background: #174d3a;
+  border-bottom: 2px solid #2ecc40;
+  padding: 1.2rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.casino-navbar h1 {
+  color: #2ecc40;
+  font-size: 2rem;
+}
+.casino-navbar .variant-btn {
+  margin-left: 1rem;
+  border-radius: 8px;
+  padding: 0.6rem 1.5rem;
+  font-weight: bold;
+  background: #1a5c3b;
+  color: #2ecc40;
+  border: none;
+  transition: background 0.2s;
+}
+.casino-navbar .variant-btn.selected {
+  background: #2ecc40;
+  color: #174d3a;
+}
+.casino-navbar .variant-btn:hover {
+  filter: brightness(0.95);
+}

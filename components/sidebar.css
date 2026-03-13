@@ -1,0 +1,33 @@
+.sidebar {
+  width: 220px;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #101010 0%, #232323 100%);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  padding: 2rem 1rem;
+  box-shadow: 2px 0 16px rgba(0,0,0,0.08);
+}
+.sidebar-header {
+  font-family: 'Lexend', Arial, sans-serif;
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin-bottom: 2rem;
+}
+.sidebar-nav ul {
+  list-style: none;
+  padding: 0;
+}
+.sidebar-nav li {
+  margin-bottom: 1.2rem;
+}
+.sidebar-nav a {
+  color: #00ff9d;
+  text-decoration: none;
+  font-family: 'Lexend', Arial, sans-serif;
+  font-size: 1.1rem;
+  transition: color 0.2s;
+}
+.sidebar-nav a:hover {
+  color: #ffe066;
+}
