@@ -286,7 +286,7 @@ El historial de movimientos ya se registra automáticamente desde el Games Backe
 ## Notas para Integradores
 
 **Si el saldo siempre muestra 0:**
-1. Verificar que `juegos/front/.env.local` exista con `NEXT_PUBLIC_GAMES_API_URL=http://localhost:3001`
+1. Verificar que `front/.env.local` exista con `NEXT_PUBLIC_GAMES_API_URL=http://localhost:3001`
 2. Verificar que el Games Backend esté corriendo en el 3001
 3. Abrir `http://localhost:3001/wallet/balance/user2` en el navegador — debe devolver `{ balance: 9500 }`
 
