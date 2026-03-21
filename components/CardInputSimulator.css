@@ -1,0 +1,55 @@
+.card-sim-container {
+  background: linear-gradient(135deg, #4f2c8b 0%, #6a3093 100%);
+  border-radius: 18px;
+  box-shadow: 0 4px 24px 0 rgba(0,0,0,0.18);
+  padding: 2rem 2rem 1.5rem 2rem;
+  color: #fff;
+  max-width: 420px;
+  margin: 0 auto;
+}
+.card-sim-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.card-sim-logo {
+  height: 32px;
+  background: #fff;
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+.card-sim-title {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-left: 1rem;
+}
+.card-sim-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+.card-sim-row {
+  display: flex;
+  gap: 1rem;
+}
+.card-sim-row-2 {
+  gap: 1rem;
+}
+.card-sim-input {
+  flex: 1;
+  background: #3a2067;
+  border: none;
+  border-radius: 8px;
+  padding: 0.9rem 1.2rem;
+  color: #fff;
+  font-size: 1rem;
+  font-family: inherit;
+  outline: none;
+  opacity: 0.7;
+}
+.card-sim-input:disabled {
+  background: #3a2067;
+  color: #fff;
+  opacity: 0.7;
+}
