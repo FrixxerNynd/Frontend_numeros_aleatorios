@@ -84,18 +84,67 @@ export async function getBalance(userId?: string): Promise<BalanceResponse> {
   return handleResponse(res);
 }
 
+export interface HistoryResponse {
+  userId: string;
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  transactions: Transaction[];
+}
+
 export async function getHistory(
   userId?: string,
-  filters?: { action?: string; currencyType?: string; from?: string; to?: string },
-): Promise<{ userId: string; total: number; transactions: Transaction[] }> {
+  filters?: {
+    action?: string;
+    currencyType?: string;
+    from?: string;
+    to?: string;
+    page?: number;
+    limit?: number;
+  },
+): Promise<HistoryResponse> {
   const params = new URLSearchParams();
   if (filters?.action) params.append('action', filters.action);
   if (filters?.currencyType) params.append('currencyType', filters.currencyType);
   if (filters?.from) params.append('from', filters.from);
   if (filters?.to) params.append('to', filters.to);
+  if (filters?.page) params.append('page', String(filters.page));
+  if (filters?.limit) params.append('limit', String(filters.limit));
 
   const qs = params.toString() ? `?${params.toString()}` : '';
   const res = await apiFetch(`${BASE_URL}${getWalletScope(userId)}/history${qs}`, {
+    headers: getAuthHeaders(),
+  });
+  return handleResponse(res);
+}
+
+// ─── Tipos para el Historial ──────────────────────────────────
+
+export interface PerformanceDayData {
+  name: string;
+  balance: number;
+}
+
+export interface DistributionItem {
+  name: string;
+  value: number;
+  color: string;
+}
+
+export interface ResumenResponse {
+  performanceData: PerformanceDayData[];
+  distributionData: DistributionItem[];
+  currentBalance: number;
+  totalBet: number;
+  totalWon: number;
+}
+
+export async function getResumen(
+  days?: number,
+): Promise<ResumenResponse> {
+  const params = days ? `?days=${days}` : '';
+  const res = await apiFetch(`${BASE_URL}/wallet/me/resumen${params}`, {
     headers: getAuthHeaders(),
   });
   return handleResponse(res);

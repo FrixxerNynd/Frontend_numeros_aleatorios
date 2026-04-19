@@ -24,7 +24,13 @@ function getTypeIcon(type: string, chips: number) {
   return WalletCards;
 }
 
-export default function ActivityList({ activities }: { activities: Activity[] }) {
+export default function ActivityList({
+  activities,
+  onItemClick,
+}: {
+  activities: Activity[];
+  onItemClick?: (index: number) => void;
+}) {
   if (activities.length === 0) {
     return (
       <section className="rounded-[30px] border border-[rgba(0,245,128,0.15)] bg-[linear-gradient(160deg,rgba(18,38,25,0.98)_0%,rgba(13,31,24,1)_100%)] p-6 shadow-[0_0_0_1px_rgba(0,245,128,0.05),0_24px_60px_rgba(0,0,0,0.35)] md:p-7">
@@ -61,7 +67,11 @@ export default function ActivityList({ activities }: { activities: Activity[] })
 
       <ul className="space-y-3">
         {activities.map((a, idx) => (
-          <li key={idx} className="flex flex-col gap-4 rounded-[24px] border border-white/6 bg-black/15 px-4 py-4 md:flex-row md:items-center md:justify-between">
+          <li
+            key={idx}
+            onClick={() => onItemClick?.(idx)}
+            className={`flex flex-col gap-4 rounded-[24px] border border-white/6 bg-black/15 px-4 py-4 md:flex-row md:items-center md:justify-between${onItemClick ? ' cursor-pointer hover:border-white/15 hover:bg-white/[0.04] transition-colors' : ''}`}
+          >
             <div className="flex items-center gap-3">
               <div className="grid h-11 w-11 place-items-center rounded-2xl border border-white/8 bg-white/[0.04] text-white/80">
                 {React.createElement(getTypeIcon(a.type, a.chips), { className: 'h-5 w-5' })}
