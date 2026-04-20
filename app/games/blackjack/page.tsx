@@ -434,47 +434,46 @@ export default function BlackjackPage() {
     let win = 0, title = '', colorClass = '#00c864';
     let net = 0;
 
-    if (ps > 21) {
-      title = '¡Te pasaste!';
-      colorClass = '#ef4444';
-      win = 0;
-      net = -finalBet;
-    } else if (pBJ && dBJ) {
-      title = 'Empate';
-      colorClass = '#fbbf24';
-      win = finalBet;
-      net = 0;
-    } else if (pBJ) {
-      title = '¡Blackjack! 🃏';
-      colorClass = '#FFD700';
-      win = Math.floor(finalBet * 2.5);
-      net = win - finalBet;
-    } else if (dBJ) {
-      title = 'Dealer Blackjack';
-      colorClass = '#ef4444';
-      win = 0;
-      net = -finalBet;
-    } else if (ds > 21) {
-      title = '¡Dealer se pasó!';
-      colorClass = '#00c864';
-      win = finalBet * 2;
-      net = finalBet;
-    } else if (ps > ds) {
-      title = '¡Ganaste!';
-      colorClass = '#00c864';
-      win = finalBet * 2;
-      net = finalBet;
-    } else if (ps === ds) {
-      title = 'Empate';
-      colorClass = '#fbbf24';
-      win = finalBet;
-      net = 0;
-    } else {
-      title = 'Perdiste';
-      colorClass = '#ef4444';
-      win = 0;
-      net = -finalBet;
-    }
+if (ps > 21) {
+  title = '¡Te pasaste!';
+  win = 0;
+  net = 0; // ❗ ya perdiste el bet antes
+}
+else if (pBJ && dBJ) {
+  title = 'Empate';
+  win = finalBet;
+  net = finalBet; // te regresan la apuesta
+}
+else if (pBJ) {
+  title = '¡Blackjack!';
+  win = Math.floor(finalBet * 2.5);
+  net = win; // recibes todo
+}
+else if (dBJ) {
+  title = 'Dealer Blackjack';
+  win = 0;
+  net = 0;
+}
+else if (ds > 21) {
+  title = '¡Dealer se pasó!';
+  win = finalBet * 2;
+  net = win;
+}
+else if (ps > ds) {
+  title = '¡Ganaste!';
+  win = finalBet * 2;
+  net = win;
+}
+else if (ps === ds) {
+  title = 'Empate';
+  win = finalBet;
+  net = finalBet;
+}
+else {
+  title = 'Perdiste';
+  win = 0;
+  net = 0;
+}
 
     if (hasInsurance && dBJ) {
       win += insBet * 3;
