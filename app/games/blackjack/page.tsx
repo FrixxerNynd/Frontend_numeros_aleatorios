@@ -12,8 +12,6 @@ const CARD_W = 80;
 const CARD_H = 112;
 const CIRC   = 2 * Math.PI * 22;
 
-const VALUES = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
-const SUITS  = ['clubs','diamonds','hearts','spades'];
 const CHIPS  = [
   { val: 5,   color: 'radial-gradient(circle at 35% 35%, #ef4444, #991b1b)' },
   { val: 10,  color: 'radial-gradient(circle at 35% 35%, #3b82f6, #1d4ed8)' },
@@ -26,20 +24,6 @@ const CHIPS  = [
 interface Card { v: string; s: string; }
 interface ResultInfo { title: string; sub: string; colorClass: string; }
 
-// ─── Deck helpers ─────────────────────────────────────────────────────────────
-function buildDeck(): Card[] {
-  const base = SUITS.flatMap(s => VALUES.map(v => ({ v, s })));
-  const shoe = Array.from({ length: 6 }, () => [...base]).flat();
-  return shuffle(shoe);
-}
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
 function calcScore(hand: Card[]): number {
   let total = 0, aces = 0;
   for (const c of hand) {
@@ -47,25 +31,8 @@ function calcScore(hand: Card[]): number {
     else if (['J','Q','K'].includes(c.v)) total += 10;
     else total += parseInt(c.v);
   }
-  while (total > 21 && aces > 0) { total -= 10; aces--; }
+  while (total > 21 && aces > 0) total -= 10, aces--;
   return total;
-}
-function isSoftHand(hand: Card[]): boolean {
-  let total = 0, aces = 0;
-  for (const c of hand) {
-    if (c.v === 'A') { aces++; total += 11; }
-    else if (['J','Q','K'].includes(c.v)) total += 10;
-    else total += parseInt(c.v);
-  }
-  while (total > 21 && aces > 0) { total -= 10; aces--; }
-  return aces > 0 && total <= 21;
-}
-const isBust       = (hand: Card[]) => calcScore(hand) > 21;
-const isBlackjack  = (hand: Card[]) => hand.length === 2 && calcScore(hand) === 21;
-const cardVal      = (c: Card) => (['J','Q','K','10'].includes(c.v) ? '10' : c.v);
-function drawFrom(deck: Card[]): { card: Card; remaining: Card[] } {
-  if (deck.length < 15) deck = buildDeck();
-  return { card: deck[deck.length - 1], remaining: deck.slice(0, -1) };
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -155,22 +122,13 @@ export default function BlackjackPage() {
   const [playerHand, setPlayerHand]   = useState<Card[]>([]);
   const [hideDealer, setHideDealer]   = useState(true);
 
-  const [splitActive, setSplitActive] = useState(false);
-  const [splitHands, setSplitHands]   = useState<Card[][]>([[], []]);
-  const [splitIndex, setSplitIndex]   = useState(0);
-
-  const [insuranceBanner, setInsuranceBanner] = useState(false);
-  const [insurance, setInsurance]     = useState(false);
-  const [insuranceBet, setInsuranceBet] = useState(0);
-
-  const [doubled, setDoubled]   = useState(false);
   const [totalWin, setTotalWin] = useState(0);
   const [result, setResult]     = useState<ResultInfo | null>(null);
 
-  const phaseRef  = useRef(phase);
+  // Script de la partida interactiva (Token)
+  const [token, setToken] = useState<string | null>(null);
+
   const timerRef  = useRef<ReturnType<typeof setInterval> | null>(null);
-  const deckRef   = useRef<Card[]>([]);
-  phaseRef.current = phase;
 
   // sync local balance when wallet loads
   useEffect(() => {
@@ -199,377 +157,111 @@ export default function BlackjackPage() {
 
   useEffect(() => () => clearTimer(), [clearTimer]);
 
-  // ── Settle with backend ───────────────────────────────────────────────────
-  async function settleGame(
-    pHand: Card[], dHand: Card[],
-    hasInsurance: boolean, insBet: number,
-    finalBet: number,
-    isSplitGame: boolean,
-    splitFinalHands?: Card[][],
-  ) {
+  // ── Backend Interaction ───────────────────────────────────────────────────
+  async function performAction(action: 'deal'|'hit'|'stand'|'double', amountToSend: number) {
     setIsSettling(true);
     setSettleError(null);
+
     try {
       const response = await fetch(`${API}/games/bet`, {
         method: 'POST',
         headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
         credentials: 'include',
         body: JSON.stringify({
-          amount: finalBet,
+          amount: amountToSend,
           gameType: 'blackjack',
-          selection: {
-            playerHand: isSplitGame ? splitFinalHands : pHand,
-            dealerHand: dHand,
-            doubled,
-            insurance: hasInsurance,
-            insuranceBet: insBet,
-            isSplit: isSplitGame,
-          },
+          selection: { action, token },
         }),
       });
+
       if (!response.ok) {
-        const err: { message?: string } = await response.json().catch(() => ({}));
-        throw new Error(err.message || `Error ${response.status}`);
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.message || 'Error al procesar acción');
       }
+
+      const data = await response.json();
+      const ws = data.winningSelection;
+      
+      setPlayerHand(ws.playerHand);
+      setDealerHand(ws.dealerHand);
+      
+      if (ws.token) {
+        setToken(ws.token);
+      }
+
+      if (ws.isOver) {
+        setHideDealer(false);
+        setPhase('done');
+        setTotalWin(data.payout);
+        setResult({
+          title: data.message,
+          sub: data.payout > 0 ? `Ganaste ${data.payout} fichas` : 'Perdiste la apuesta',
+          colorClass: data.winner ? '#00c864' : (data.payout === amountToSend && data.winner) ? '#fff' : '#ef4444'
+        });
+        clearTimer();
+        void fetchBalance().then(() => setLocalBalance(null));
+      } else {
+        setPhase('play');
+        startTimer(30, () => performAction('stand', 0));
+      }
+      
     } catch (error) {
-      setSettleError(error instanceof Error ? error.message : 'Error al conectar con el servidor');
+      setSettleError(error instanceof Error ? error.message : 'Error de red');
     } finally {
       setIsSettling(false);
-      await fetchBalance();
-      setLocalBalance(null); // let wallet store take over
     }
   }
 
-  // ── Deal ──────────────────────────────────────────────────────────────────
-  function handleDeal() {
+  // ── Actions ───────────────────────────────────────────────────────────────
+  async function handleDeal() {
     if (bet === 0 || balance < bet) return;
-    let d = buildDeck();
-    const draw = () => { const r = drawFrom(d); d = r.remaining; return r.card; };
-    const p  = [draw(), draw()];
-    const dl = [draw(), draw()];
-    deckRef.current = d;
-
     setLocalBalance(b => (b ?? walletBalance) - bet);
-    setDealerHand(dl);
-    setPlayerHand(p);
     setHideDealer(true);
-    setSplitActive(false);
-    setSplitHands([[], []]);
-    setSplitIndex(0);
-    setInsurance(false);
-    setInsuranceBet(0);
-    setDoubled(false);
-    setTotalWin(0);
     setResult(null);
-    setSettleError(null);
-
-    const pBJ = isBlackjack(p);
-    const dBJ = isBlackjack(dl);
-
-    if (dl[0].v === 'A' && !pBJ) {
-      setPhase('play');
-      setInsuranceBanner(true);
-      startTimer(30, () => { if (phaseRef.current === 'play') triggerStand(); });
-      return;
-    }
-    if (pBJ || dBJ) {
-      setHideDealer(false);
-      finishGame(p, dl, false, false, 0, bet);
-      return;
-    }
-    setPhase('play');
-    startTimer(30, () => { if (phaseRef.current === 'play') triggerStand(); });
+    setTotalWin(0);
+    setDealerHand([]);
+    setPlayerHand([]);
+    await performAction('deal', bet);
   }
 
-  // ── Insurance ─────────────────────────────────────────────────────────────
-  function handleInsurance(take: boolean) {
-    setInsuranceBanner(false);
-    let insBet = 0;
-    if (take) {
-      insBet = Math.floor(bet / 2);
-      setLocalBalance(b => (b ?? walletBalance) - insBet);
-      setInsurance(true);
-      setInsuranceBet(insBet);
-    }
-    const pBJ = isBlackjack(playerHand);
-    const dBJ = isBlackjack(dealerHand);
-    if (pBJ || dBJ) {
-      setHideDealer(false);
-      finishGame(playerHand, dealerHand, false, take, insBet, bet);
-      return;
-    }
-    if (phase === 'play') {
-      startTimer(30, () => { if (phaseRef.current === 'play') triggerStand(); });
-    }
-  }
-
-  // ── Hit ───────────────────────────────────────────────────────────────────
   function handleHit() {
-    if (phase !== 'play') return;
-    const { card, remaining } = drawFrom(deckRef.current);
-    deckRef.current = remaining;
-    if (splitActive) {
-      const newSplitHands = splitHands.map((h, i) => i === splitIndex ? [...h, card] : h);
-      setSplitHands(newSplitHands);
-      const hand = newSplitHands[splitIndex];
-      if (isBust(hand) || calcScore(hand) === 21) handleNextSplitHand(newSplitHands);
-    } else {
-      const newHand = [...playerHand, card];
-      setPlayerHand(newHand);
-      if (isBust(newHand)) {
-        setHideDealer(false);
-        finishGame(newHand, dealerHand, false, insurance, insuranceBet, bet, true);
-      } else if (calcScore(newHand) === 21) {
-        triggerDealerTurn(newHand);
-      }
-    }
+    if (phase !== 'play' || !token) return;
+    startTimer(30, () => performAction('stand', 0));
+    void performAction('hit', 0);
   }
-
-  // ── Stand ─────────────────────────────────────────────────────────────────
-  const triggerStand = useCallback(() => {
-    if (phaseRef.current !== 'play') return;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    triggerDealerTurn(playerHand);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playerHand]);
 
   function handleStand() {
-    if (phase !== 'play') return;
-    if (splitActive) handleNextSplitHand(splitHands);
-    else triggerDealerTurn(playerHand);
+    if (phase !== 'play' || !token) return;
+    void performAction('stand', 0);
   }
 
-  // ── Double ────────────────────────────────────────────────────────────────
   function handleDouble() {
-    if (phase !== 'play' || balance < bet) return;
-    const { card, remaining } = drawFrom(deckRef.current);
-    deckRef.current = remaining;
+    if (phase !== 'play' || !token || balance < bet) return;
     setLocalBalance(b => (b ?? walletBalance) - bet);
-    const newBet  = bet * 2;
-    setBet(newBet);
-    setDoubled(true);
-    const newHand = [...playerHand, card];
-    setPlayerHand(newHand);
-    if (isBust(newHand)) {
-      setHideDealer(false);
-      finishGame(newHand, dealerHand, false, insurance, insuranceBet, newBet, true);
-    } else {
-      triggerDealerTurn(newHand, newBet);
-    }
+    setBet(b => b * 2);
+    void performAction('double', bet);
   }
 
-  // ── Split ─────────────────────────────────────────────────────────────────
-  function handleSplit() {
-    if (phase !== 'play' || balance < bet) return;
-    setLocalBalance(b => (b ?? walletBalance) - bet);
-    let d = deckRef.current;
-    const draw = () => { const r = drawFrom(d); d = r.remaining; return r.card; };
-    const hands: Card[][] = [[playerHand[0], draw()], [playerHand[1], draw()]];
-    deckRef.current = d;
-    setSplitHands(hands);
-    setSplitActive(true);
-    setSplitIndex(0);
-  }
-
-  function handleNextSplitHand(hands: Card[][]) {
-    if (splitIndex === 0) {
-      setSplitIndex(1);
-      if (calcScore(hands[1]) === 21) runDealerTurn(hands);
-    } else {
-      runDealerTurn(hands);
-    }
-  }
-
-  // ── Dealer turn ───────────────────────────────────────────────────────────
-  function triggerDealerTurn(finalPlayerHand: Card[], finalBet?: number) {
-    clearTimer();
-    setPhase('dealer');
-    setHideDealer(false);
-    setTimeout(() => runDealerLoop(dealerHand, finalPlayerHand, finalBet ?? bet), 500);
-  }
-
-  function runDealerLoop(dHand: Card[], pHand: Card[], finalBet: number) {
-    const ds = calcScore(dHand);
-    if (ds < 17 || (ds === 17 && isSoftHand(dHand))) {
-      const { card, remaining } = drawFrom(deckRef.current);
-      deckRef.current = remaining;
-      const newDHand = [...dHand, card];
-      setDealerHand(newDHand);
-      setTimeout(() => runDealerLoop(newDHand, pHand, finalBet), 1000);
-    } else {
-      finishGame(pHand, dHand, false, insurance, insuranceBet, finalBet);
-    }
-  }
-
-  function runDealerTurn(splitFinalHands: Card[][]) {
-    clearTimer();
-    setPhase('dealer');
-    setHideDealer(false);
-    setTimeout(() => runDealerLoopSplit(dealerHand, splitFinalHands), 1000);
-  }
-
-  function runDealerLoopSplit(dHand: Card[], splitFinalHands: Card[][]) {
-    const ds = calcScore(dHand);
-    if (ds < 17 || (ds === 17 && isSoftHand(dHand))) {
-      const { card, remaining } = drawFrom(deckRef.current);
-      deckRef.current = remaining;
-      const newDHand = [...dHand, card];
-      setDealerHand(newDHand);
-      setTimeout(() => runDealerLoopSplit(newDHand, splitFinalHands), 1000);
-    } else {
-      finishGameSplit(splitFinalHands, dHand);
-    }
-  }
-
-  // ── Resolve ───────────────────────────────────────────────────────────────
-  function finishGame(
-    pHand: Card[], dHand: Card[],
-    _isSplit: boolean, hasInsurance: boolean, insBet: number,
-    finalBet: number, _bustImmediate = false,
-  ) {
-    const ps = calcScore(pHand);
-    const ds = calcScore(dHand);
-    const pBJ = isBlackjack(pHand);
-    const dBJ = isBlackjack(dHand);
-    let win = 0, title = '', colorClass = '#00c864';
-    let net = 0;
-
-if (ps > 21) {
-  title = '¡Te pasaste!';
-  win = 0;
-  net = 0; // ❗ ya perdiste el bet antes
-}
-else if (pBJ && dBJ) {
-  title = 'Empate';
-  win = finalBet;
-  net = finalBet; // te regresan la apuesta
-}
-else if (pBJ) {
-  title = '¡Blackjack!';
-  win = Math.floor(finalBet * 2.5);
-  net = win; // recibes todo
-}
-else if (dBJ) {
-  title = 'Dealer Blackjack';
-  win = 0;
-  net = 0;
-}
-else if (ds > 21) {
-  title = '¡Dealer se pasó!';
-  win = finalBet * 2;
-  net = win;
-}
-else if (ps > ds) {
-  title = '¡Ganaste!';
-  win = finalBet * 2;
-  net = win;
-}
-else if (ps === ds) {
-  title = 'Empate';
-  win = finalBet;
-  net = finalBet;
-}
-else {
-  title = 'Perdiste';
-  win = 0;
-  net = 0;
-}
-
-    if (hasInsurance && dBJ) {
-      win += insBet * 3;
-      net += insBet * 2; // porque ya se descontó el seguro
-    }
-
-    const sub = win > 0
-      ? `Recibes ${win} fichas · Neto: ${net >= 0 ? '+' : ''}${net}`
-      : `Pierdes ${finalBet} fichas`;
-
-    setTotalWin(win);
-    setLocalBalance(b => (b ?? walletBalance) + net);
-
-    setTimeout(() => {
-      setResult({ title, sub, colorClass });
-      setPhase('done');
-      void settleGame(pHand, dHand, hasInsurance, insBet, finalBet, false);
-    }, 500);
-    clearTimer();
-  }
-
-  function finishGameSplit(hands: Card[][], dHand: Card[]) {
-    const ds  = calcScore(dHand);
-    const dBJ = isBlackjack(dHand);
-    let totalW = 0;
-    let net = 0;
-    const labels = hands.map(h => {
-      const ps = calcScore(h);
-      if (ps > 21) {
-        net -= bet;
-        return 'Bust';
-      }
-      if (dBJ && h.length === 2 && ps === 21) {
-        totalW += bet;
-        // empate, regresa apuesta
-        return 'Empate';
-      }
-      if (dBJ) {
-        net -= bet;
-        return 'Pierdes';
-      }
-      if (ds > 21 || ps > ds) {
-        totalW += bet * 2;
-        net += bet;
-        return 'Ganas';
-      }
-      if (ps === ds) {
-        totalW += bet;
-        // empate, regresa apuesta
-        return 'Empate';
-      }
-      net -= bet;
-      return 'Pierdes';
-    });
-    const title      = labels.join(' / ');
-    const colorClass = net > 0 ? '#00c864' : net === 0 ? '#fbbf24' : '#ef4444';
-    const sub        = totalW > 0
-      ? `Recibes ${totalW} fichas · Neto: ${net >= 0 ? '+' : ''}${net}`
-      : `Pierdes ${bet * 2} fichas`;
-
-    setTotalWin(totalW);
-    setLocalBalance(b => (b ?? walletBalance) + net);
-
-    setTimeout(() => {
-      setResult({ title, sub, colorClass });
-      setPhase('done');
-      void settleGame([], dHand, false, 0, bet * 2, true, hands);
-    }, 1000);
-    clearTimer();
-  }
-
-  // ── New round ─────────────────────────────────────────────────────────────
   function handleNewRound() {
     setBet(b => Math.min(b, balance));
     setPhase('bet');
     setDealerHand([]);
     setPlayerHand([]);
     setHideDealer(true);
-    setSplitActive(false);
-    setSplitHands([[], []]);
-    setSplitIndex(0);
-    setInsuranceBanner(false);
     setResult(null);
     setTotalWin(0);
-    setDoubled(false);
+    setToken(null);
     clearTimer();
   }
 
   useEffect(() => { handleNewRound(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   // ── Derived ───────────────────────────────────────────────────────────────
-  const activeHand  = splitActive ? splitHands[splitIndex] : playerHand;
-  const dealerScore = hideDealer ? calcScore([dealerHand[0]].filter(Boolean)) : calcScore(dealerHand);
-  const canDouble   = phase === 'play' && activeHand.length === 2 && balance >= (doubled ? 0 : bet) && !doubled;
-  const canSplit    = phase === 'play' && !splitActive && playerHand.length === 2
-    && cardVal(playerHand[0]) === cardVal(playerHand[1]) && balance >= bet;
+  const dealerScore = hideDealer && dealerHand.length ? calcScore([dealerHand[0]]) : calcScore(dealerHand);
+  const playerScore = playerHand.length ? calcScore(playerHand) : 0;
+  
+  // Can only double on initial hand if enough balance
+  const canDouble = phase === 'play' && playerHand.length === 2 && balance >= bet;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -619,7 +311,7 @@ else {
           }}>
             <div style={{ color: 'rgba(255,255,255,.6)', fontSize: 11, letterSpacing: '.5px' }}>Fichas</div>
             <div style={{ color: '#fff', fontSize: 17, fontWeight: 700 }}>
-              {isSettling ? '...' : balance.toLocaleString()}
+              {isSettling && phase === 'done' ? '...' : Math.floor(balance).toLocaleString()}
             </div>
           </div>
 
@@ -635,7 +327,7 @@ else {
           )}
 
           {/* Timer */}
-          {phase !== 'bet' && playerHand.length > 0 && (
+          {phase === 'play' && (
             <div style={{ position: 'absolute', top: 16, right: 20, width: 50, height: 50 }}>
               <TimerRing value={timerVal} total={30} />
             </div>
@@ -655,52 +347,17 @@ else {
           </div>
 
           {/* ── PLAYER ── */}
-          {!splitActive ? (
-            <div style={{
-              position: 'absolute', bottom: 96, left: '50%', transform: 'translateX(-50%)',
-              display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-            }}>
-              {playerHand.length > 0 && (
-                <>
-                  <ScoreBadge score={calcScore(playerHand)} />
-                  <CardHand hand={playerHand} fan />
-                </>
-              )}
-            </div>
-          ) : (
-            <div style={{
-              position: 'absolute', bottom: 88, left: '50%', transform: 'translateX(-50%)',
-              display: 'flex', gap: 24,
-            }}>
-              {splitHands.map((h, i) => (
-                <div key={i} style={{
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
-                  outline: i === splitIndex ? '2px solid #00FF88' : 'none',
-                  outlineOffset: 8, borderRadius: 8, padding: '4px 8px',
-                }}>
-                  <CardHand hand={h} fan />
-                  {h.length > 0 && <ScoreBadge score={calcScore(h)} style={{ width: 26, height: 26, fontSize: 11 }} />}
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* ── INSURANCE BANNER ── */}
-          {insuranceBanner && (
-            <div style={{
-              position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
-              background: 'rgba(14,165,233,.95)', color: '#fff', padding: '16px 28px',
-              borderRadius: 12, zIndex: 40, display: 'flex', flexDirection: 'column',
-              alignItems: 'center', gap: 10, boxShadow: '0 8px 30px rgba(0,0,0,.5)',
-            }}>
-              <div style={{ fontSize: 18, fontWeight: 800 }}>¿Tomar seguro?</div>
-              <div style={{ fontSize: 13, opacity: .8 }}>Cuesta la mitad de tu apuesta ({Math.floor(bet / 2)} fichas)</div>
-              <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={() => handleInsurance(true)} style={{ padding: '7px 20px', borderRadius: 50, border: 'none', background: '#fff', color: '#0369a1', fontWeight: 700, cursor: 'pointer' }}>Sí</button>
-                <button onClick={() => handleInsurance(false)} style={{ padding: '7px 20px', borderRadius: 50, border: '1px solid rgba(255,255,255,.5)', background: 'rgba(255,255,255,.15)', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>No</button>
-              </div>
-            </div>
-          )}
+          <div style={{
+            position: 'absolute', bottom: 96, left: '50%', transform: 'translateX(-50%)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+          }}>
+            {playerHand.length > 0 && (
+              <>
+                <ScoreBadge score={playerScore} />
+                <CardHand hand={playerHand} fan />
+              </>
+            )}
+          </div>
 
           {/* ── RESULT OVERLAY ── */}
           {result && (
@@ -737,7 +394,7 @@ else {
           )}
 
           {/* ── ACTION BUTTONS (play phase) ── */}
-          {phase === 'play' && !insuranceBanner && (
+          {phase === 'play' && (
             <div style={{
               position: 'absolute', bottom: 82, left: '50%', transform: 'translateX(-50%)',
               display: 'flex', gap: 10, zIndex: 20,
@@ -745,17 +402,16 @@ else {
               {([
                 { label: 'Pedir',     onClick: handleHit,    bg: 'linear-gradient(135deg,#22c55e,#15803d)',  show: true },
                 { label: 'Plantarse', onClick: handleStand,  bg: 'linear-gradient(135deg,#a855f7,#7c3aed)', show: true },
-                { label: 'Doblar',   onClick: handleDouble,  bg: 'linear-gradient(135deg,#f59e0b,#b45309)',  show: canDouble, disabled: !canDouble },
-                { label: 'Dividir',  onClick: handleSplit,   bg: 'linear-gradient(135deg,#8b5cf6,#6d28d9)',  show: canSplit,  disabled: !canSplit },
+                { label: 'Doblar',    onClick: handleDouble, bg: 'linear-gradient(135deg,#f59e0b,#b45309)',  show: true, disabled: !canDouble || isSettling },
               ] as const).filter(b => b.show).map(({ label, onClick, bg, disabled }) => (
                 <button key={label} onClick={onClick}
-                  disabled={disabled as boolean | undefined}
+                  disabled={disabled as boolean | undefined || isSettling}
                   style={{
                     padding: '10px 22px', borderRadius: 50, border: 'none',
                     background: bg, color: '#fff', fontWeight: 700, fontSize: 13,
-                    cursor: (disabled as boolean | undefined) ? 'not-allowed' : 'pointer',
+                    cursor: (disabled as boolean | undefined) || isSettling ? 'not-allowed' : 'pointer',
                     boxShadow: '0 3px 10px rgba(0,0,0,.4)', letterSpacing: '.5px',
-                    opacity: (disabled as boolean | undefined) ? .4 : 1,
+                    opacity: (disabled as boolean | undefined) || isSettling ? .4 : 1,
                   }}
                 >{label}</button>
               ))}
@@ -830,15 +486,15 @@ else {
                 >−</button>
                 <button
                   onClick={handleDeal}
-                  disabled={phase !== 'bet' || bet === 0 || balance < bet}
+                  disabled={phase !== 'bet' || bet === 0 || balance < bet || isSettling}
                   style={{
                     width: 52, height: 52, borderRadius: '50%',
                     background: 'linear-gradient(145deg,#2a2a2a,#111)',
                     border: '2px solid rgba(255,255,255,.15)', color: '#fff',
                     fontSize: 12, fontWeight: 700, letterSpacing: '.5px',
-                    cursor: phase === 'bet' && bet > 0 ? 'pointer' : 'not-allowed',
+                    cursor: phase === 'bet' && bet > 0 && !isSettling ? 'pointer' : 'not-allowed',
                     boxShadow: '0 3px 10px rgba(0,0,0,.5)',
-                    opacity: phase !== 'bet' || bet === 0 || balance < bet ? .5 : 1,
+                    opacity: phase !== 'bet' || bet === 0 || balance < bet || isSettling ? .5 : 1,
                   }}
                 >DEAL</button>
                 <button
