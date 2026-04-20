@@ -250,7 +250,7 @@ function TransactionModal({
 
 export default function HistorialPage() {
   const [selectedDays, setSelectedDays] = useState(7);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [actionFilter, setActionFilter] = useState('');
 
   // Datos de gráficas
   const [performanceData, setPerformanceData] = useState<PerformanceDayData[]>([]);
@@ -291,7 +291,11 @@ export default function HistorialPage() {
     setErrorHistory(null);
     setCurrentPage(1);
     try {
-      const data = await getHistory(undefined, { page: 1, limit: PAGE_SIZE });
+      const data = await getHistory(undefined, { 
+        page: 1, 
+        limit: PAGE_SIZE,
+        ...(actionFilter ? { action: actionFilter } : {})
+      });
       setRawTransactions(data.transactions);
       setTotalPages(data.totalPages);
       setTotalCount(data.total);
@@ -300,7 +304,7 @@ export default function HistorialPage() {
     } finally {
       setLoadingHistory(false);
     }
-  }, []);
+  }, [actionFilter]);
 
   // ── Cargar más ────────────────────────────────────────────
   const loadMore = async () => {
@@ -308,7 +312,11 @@ export default function HistorialPage() {
     setLoadingMore(true);
     try {
       const nextPage = currentPage + 1;
-      const data = await getHistory(undefined, { page: nextPage, limit: PAGE_SIZE });
+      const data = await getHistory(undefined, { 
+        page: nextPage, 
+        limit: PAGE_SIZE,
+        ...(actionFilter ? { action: actionFilter } : {})
+      });
       setRawTransactions((prev) => [...prev, ...data.transactions]);
       setCurrentPage(nextPage);
     } catch {
@@ -324,17 +332,9 @@ export default function HistorialPage() {
   // ── Actividades derivadas ─────────────────────────────────
   const allActivities = rawTransactions.map(txToActivity);
 
-  const filteredActivities = searchQuery.trim()
-    ? allActivities.filter(
-        (a) =>
-          a.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          a.type.toLowerCase().includes(searchQuery.toLowerCase()),
-      )
-    : allActivities;
-
   // ── Modal handler ─────────────────────────────────────────
   const handleActivityClick = (index: number) => {
-    const txId = filteredActivities[index]?._txId;
+    const txId = allActivities[index]?._txId;
     const tx = rawTransactions.find((t) => t.id === txId);
     if (tx) setSelectedTx(tx);
   };
@@ -359,7 +359,7 @@ export default function HistorialPage() {
   };
 
   const isAllZeroBalance = performanceData.length > 0 && performanceData.every((d) => d.balance === 0);
-  const isEmpty = !loadingHistory && !loadingResumen && totalCount === 0;
+  const isEmpty = !loadingHistory && !loadingResumen && totalCount === 0 && actionFilter === '';
 
   return (
     <main className="historial-main pt-20">
@@ -543,26 +543,33 @@ export default function HistorialPage() {
               </div>
             </section>
 
-            {/* ── Barra de búsqueda ── */}
-            <section className="mb-6 flex flex-col md:flex-row gap-4 items-center justify-between rounded-[24px] border border-white/6 bg-black/15 px-4 py-4 backdrop-blur-sm">
-              <div className="relative w-full md:w-72">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-4 w-4" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Buscar movimiento..."
-                  className="w-full rounded-full border border-white/10 bg-white/5 py-2 pl-9 pr-4 text-sm text-white placeholder-white/40 focus:border-emerald-400/40 focus:bg-white/10 focus:outline-none transition-all"
-                />
+            {/* ── Filtros ── */}
+            <section className="mb-6 flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between rounded-[24px] border border-white/6 bg-black/15 px-4 py-4 backdrop-blur-sm overflow-x-auto">
+              <div className="flex gap-2 min-w-max">
+                {[
+                  { label: 'Todos', value: '' },
+                  { label: 'Apuestas', value: 'BET' },
+                  { label: 'Premios', value: 'WIN' },
+                  { label: 'Depósitos', value: 'DEPOSIT' },
+                  { label: 'Retiros', value: 'WITHDRAW' },
+                ].map((opt) => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setActionFilter(opt.value)}
+                    className={`rounded-full px-4 py-2 text-xs font-semibold transition-all ${
+                      actionFilter === opt.value
+                        ? 'bg-emerald-400/20 text-emerald-200 border border-emerald-400/30'
+                        : 'bg-white/5 text-white/40 border border-white/8 hover:text-white/70 hover:bg-white/10'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
               </div>
-              <div className="flex items-center gap-3 text-xs text-white/35">
-                {searchQuery ? (
-                  <span>{filteredActivities.length} resultado{filteredActivities.length !== 1 ? 's' : ''}</span>
-                ) : (
-                  <span>
-                    {rawTransactions.length} de {totalCount} movimiento{totalCount !== 1 ? 's' : ''}
-                  </span>
-                )}
+              <div className="flex shrink-0 items-center gap-3 text-xs text-white/35">
+                <span>
+                  {rawTransactions.length} de {totalCount} movimiento{totalCount !== 1 ? 's' : ''}
+                </span>
               </div>
             </section>
 
@@ -583,12 +590,12 @@ export default function HistorialPage() {
               ) : (
                 <>
                   <ActivityList
-                    activities={filteredActivities}
+                    activities={allActivities}
                     onItemClick={handleActivityClick}
                   />
 
                   {/* Botón "Cargar más" */}
-                  {!searchQuery && currentPage < totalPages && (
+                  {currentPage < totalPages && (
                     <div className="flex justify-center">
                       <button
                         onClick={loadMore}
