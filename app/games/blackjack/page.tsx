@@ -236,6 +236,7 @@ export default function BlackjackPage() {
     } finally {
       setIsSettling(false);
       await fetchBalance();
+      setLocalBalance(null); // let wallet store take over
     }
   }
 
@@ -431,25 +432,61 @@ export default function BlackjackPage() {
     const pBJ = isBlackjack(pHand);
     const dBJ = isBlackjack(dHand);
     let win = 0, title = '', colorClass = '#00c864';
+    let net = 0;
 
-    if (ps > 21)         { title = '¡Te pasaste!';       colorClass = '#ef4444'; }
-    else if (pBJ && dBJ) { title = 'Empate';             colorClass = '#fbbf24'; win = finalBet; }
-    else if (pBJ)        { title = '¡Blackjack! 🃏';    colorClass = '#FFD700'; win = Math.floor(finalBet * 2.5); }
-    else if (dBJ)        { title = 'Dealer Blackjack';   colorClass = '#ef4444'; }
-    else if (ds > 21)    { title = '¡Dealer se pasó!';  colorClass = '#00c864'; win = finalBet * 2; }
-    else if (ps > ds)    { title = '¡Ganaste!';          colorClass = '#00c864'; win = finalBet * 2; }
-    else if (ps === ds)  { title = 'Empate';             colorClass = '#fbbf24'; win = finalBet; }
-    else                 { title = 'Perdiste';           colorClass = '#ef4444'; }
+    if (ps > 21) {
+      title = '¡Te pasaste!';
+      colorClass = '#ef4444';
+      win = 0;
+      net = -finalBet;
+    } else if (pBJ && dBJ) {
+      title = 'Empate';
+      colorClass = '#fbbf24';
+      win = finalBet;
+      net = 0;
+    } else if (pBJ) {
+      title = '¡Blackjack! 🃏';
+      colorClass = '#FFD700';
+      win = Math.floor(finalBet * 2.5);
+      net = win - finalBet;
+    } else if (dBJ) {
+      title = 'Dealer Blackjack';
+      colorClass = '#ef4444';
+      win = 0;
+      net = -finalBet;
+    } else if (ds > 21) {
+      title = '¡Dealer se pasó!';
+      colorClass = '#00c864';
+      win = finalBet * 2;
+      net = finalBet;
+    } else if (ps > ds) {
+      title = '¡Ganaste!';
+      colorClass = '#00c864';
+      win = finalBet * 2;
+      net = finalBet;
+    } else if (ps === ds) {
+      title = 'Empate';
+      colorClass = '#fbbf24';
+      win = finalBet;
+      net = 0;
+    } else {
+      title = 'Perdiste';
+      colorClass = '#ef4444';
+      win = 0;
+      net = -finalBet;
+    }
 
-    if (hasInsurance && dBJ) win += insBet * 3;
+    if (hasInsurance && dBJ) {
+      win += insBet * 3;
+      net += insBet * 2; // porque ya se descontó el seguro
+    }
 
-    const net = win - finalBet;
     const sub = win > 0
       ? `Recibes ${win} fichas · Neto: ${net >= 0 ? '+' : ''}${net}`
       : `Pierdes ${finalBet} fichas`;
 
     setTotalWin(win);
-    setLocalBalance(b => (b ?? walletBalance) + win);
+    setLocalBalance(b => (b ?? walletBalance) + net);
 
     setTimeout(() => {
       setResult({ title, sub, colorClass });
@@ -463,22 +500,43 @@ export default function BlackjackPage() {
     const ds  = calcScore(dHand);
     const dBJ = isBlackjack(dHand);
     let totalW = 0;
+    let net = 0;
     const labels = hands.map(h => {
       const ps = calcScore(h);
-      if (ps > 21) return 'Bust';
-      if (dBJ && h.length === 2 && ps === 21) { totalW += bet; return 'Empate'; }
-      if (dBJ)         return 'Pierdes';
-      if (ds > 21 || ps > ds) { totalW += bet * 2; return 'Ganas'; }
-      if (ps === ds)   { totalW += bet; return 'Empate'; }
+      if (ps > 21) {
+        net -= bet;
+        return 'Bust';
+      }
+      if (dBJ && h.length === 2 && ps === 21) {
+        totalW += bet;
+        // empate, regresa apuesta
+        return 'Empate';
+      }
+      if (dBJ) {
+        net -= bet;
+        return 'Pierdes';
+      }
+      if (ds > 21 || ps > ds) {
+        totalW += bet * 2;
+        net += bet;
+        return 'Ganas';
+      }
+      if (ps === ds) {
+        totalW += bet;
+        // empate, regresa apuesta
+        return 'Empate';
+      }
+      net -= bet;
       return 'Pierdes';
     });
-    const net        = totalW - bet * 2;
     const title      = labels.join(' / ');
-    const colorClass = totalW > bet * 2 ? '#00c864' : totalW > 0 ? '#fbbf24' : '#ef4444';
-    const sub        = `Recibes ${totalW} fichas · Neto: ${net >= 0 ? '+' : ''}${net}`;
+    const colorClass = net > 0 ? '#00c864' : net === 0 ? '#fbbf24' : '#ef4444';
+    const sub        = totalW > 0
+      ? `Recibes ${totalW} fichas · Neto: ${net >= 0 ? '+' : ''}${net}`
+      : `Pierdes ${bet * 2} fichas`;
 
     setTotalWin(totalW);
-    setLocalBalance(b => (b ?? walletBalance) + totalW);
+    setLocalBalance(b => (b ?? walletBalance) + net);
 
     setTimeout(() => {
       setResult({ title, sub, colorClass });
