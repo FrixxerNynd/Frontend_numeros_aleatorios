@@ -103,6 +103,7 @@ const DAY_OPTIONS = [
   { label: '7 días', value: 7 },
   { label: '30 días', value: 30 },
   { label: '90 días', value: 90 },
+  { label: 'Todo', value: 3650 },
 ];
 
 const PAGE_SIZE = 20;
