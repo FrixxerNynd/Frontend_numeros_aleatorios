@@ -236,7 +236,6 @@ export default function BlackjackPage() {
     } finally {
       setIsSettling(false);
       await fetchBalance();
-      setLocalBalance(null); // let wallet store take over
     }
   }
 
