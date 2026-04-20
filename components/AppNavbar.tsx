@@ -191,11 +191,6 @@ export default function AppNavbar() {
 
       {/* Right side: balance + user + logout */}
       <div className="flex items-center gap-4">
-        {/* Balance */}
-        <div className="flex items-center gap-2 bg-white/5 px-4 py-2 rounded-full border border-white/10">
-          <Coins className="w-4 h-4 text-[#C9962F]" />
-          <span className="text-white font-medium text-sm">{balance.toLocaleString()} fichas</span>
-        </div>
 
         {/* user name */}
         {displayName && (
